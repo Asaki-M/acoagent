@@ -1,0 +1,14 @@
+feature
+  h_8d050896203f0f 4,7,10,13,16,19,22-35,38,44-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "b42e49b25e940ac955f707c04226f2bedfc2db67",
+  "prompts": {},
+  "humans": {
+    "h_8d050896203f0f": {
+      "author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
