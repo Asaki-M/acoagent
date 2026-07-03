@@ -1,0 +1,16 @@
+{
+  "name": "ai-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n api,web -c green,cyan \"pnpm --filter @ai-platform/api dev\" \"pnpm --filter @ai-platform/web dev\"",
+    "dev:api": "pnpm --filter @ai-platform/api dev",
+    "dev:web": "pnpm --filter @ai-platform/web dev",
+    "build": "pnpm --filter @ai-platform/api build && pnpm --filter @ai-platform/web build",
+    "lint": "pnpm --filter @ai-platform/api lint && pnpm --filter @ai-platform/web lint",
+    "typecheck": "pnpm --filter @ai-platform/api typecheck && pnpm --filter @ai-platform/web typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}

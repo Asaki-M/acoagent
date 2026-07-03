@@ -1,0 +1,25 @@
+{
+  "name": "@ai-platform/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --noEmit",
+    "start": "tsx src/server.ts",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/genai": "^2.10.0",
+    "@hono/node-server": "^1.14.4",
+    "dotenv": "^17.2.3",
+    "hono": "^4.10.7",
+    "openai": "^6.45.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}
