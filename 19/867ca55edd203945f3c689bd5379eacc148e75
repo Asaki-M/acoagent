@@ -1,0 +1,100 @@
+apps/api/src/core/memory/utils/store-helpers.ts
+  s_65496272666622::t_79aab6e9de8e9f 1-13
+apps/api/src/core/memory/store.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 2,4,6
+apps/api/src/core/service/harness/context.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 1-86
+apps/api/src/core/manager/providers/mock-provider.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 1,3,5-10,12-42,45,47
+apps/api/src/core/manager/providers/vertex-provider.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 9-11
+apps/api/package.json
+  s_bdd1146e65df74::t_73b89eca599b1d 18-19
+feature
+  h_8d050896203f0f 1,22
+apps/api/src/core/service/harness/types.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 1-2
+apps/api/src/server.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 8
+.gitignore
+  s_65496272666622::t_79aab6e9de8e9f 27
+apps/api/src/core/manager/providers/openai-provider.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 9-12
+.env.example
+  s_65496272666622::t_79aab6e9de8e9f 4
+  s_bdd1146e65df74::t_a5663712c3cc57 13,18-21
+README.md
+  s_65496272666622::t_f209f099b48e2b 58
+  s_65496272666622::t_79aab6e9de8e9f 48
+  s_bdd1146e65df74::t_a5663712c3cc57 62,65,67
+  s_bdd1146e65df74::t_ca7776c2f476ec 60-61,66
+  s_bdd1146e65df74::t_9237aa44f9f246 63-64
+  s_bdd1146e65df74::t_1c2c05ee38fff7 56-57,59,68-69
+apps/api/src/core/transport/sse.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 1-32
+apps/api/src/core/manager/providers/utils/memory-tool-calls.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 1-11
+apps/api/src/core/router/router.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 3-4,7-8,10-12,16-17,75-125,150,153,155-167,176-184,190-198,209-210,213,215-217,220,227-235
+apps/api/src/core/service/harness/model-harness.ts
+  s_65496272666622::t_e11ffe2b0ce9f8 1-101
+pnpm-lock.yaml
+  s_bdd1146e65df74::t_6de10c6ff72d1d 32-34
+apps/api/src/core/manager/providers/utils/json.ts
+  s_bdd1146e65df74::t_077c6fee79f635 1-8
+apps/api/src/core/memory/tools.ts
+  s_bdd1146e65df74::t_06a7b48855be69 1-5,7-12,14-87,120-124,127,129,132-134
+apps/api/src/core/memory/utils/tool-helpers.ts
+  s_bdd1146e65df74::t_b13f235a77c7fe 1-35
+apps/api/src/core/router/utils/scope.ts
+  s_bdd1146e65df74::t_6d67b63523a906 1-10
+apps/api/src/core/router/utils/traces.ts
+  s_bdd1146e65df74::t_1061f4a1f22ea8 1-18
+apps/api/src/core/tools/adapters.ts
+  s_bdd1146e65df74::t_5a49f036aa11fa 1-124
+apps/api/src/core/tools/default-tools.ts
+  s_bdd1146e65df74::t_f40111dbf4c77a 1-62
+apps/api/src/core/tools/embeddings.ts
+  s_bdd1146e65df74::t_e515c894f48c30 1-86
+apps/api/src/core/tools/index.ts
+  s_bdd1146e65df74::t_496f9b26375931 1-8
+apps/api/src/core/tools/pool.ts
+  s_bdd1146e65df74::t_4f01b17fc11d91 1-169
+apps/api/src/core/tools/routing-tools.ts
+  s_bdd1146e65df74::t_fa359c256194ee 1-69
+apps/api/src/core/tools/types.ts
+  s_bdd1146e65df74::t_d729dff6e01373 1-51
+apps/api/src/core/tools/utils/json.ts
+  s_bdd1146e65df74::t_9a02d4a70cdc43 1-24
+apps/api/src/core/tools/utils/vector.ts
+  s_bdd1146e65df74::t_b421729c0be570 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "19867ca55edd203945f3c689bd5379eacc148e75",
+  "prompts": {},
+  "humans": {
+    "h_8d050896203f0f": {
+      "author": "qinghuan <1041220793@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_65496272666622": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f36d5-e262-7ca0-9718-35fe286fa34e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    },
+    "s_bdd1146e65df74": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f354d-0dcd-7963-b3f4-6723a949c04f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
