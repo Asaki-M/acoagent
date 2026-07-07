@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { buildCodeQuestionRequest } from "../service/harness/context.js";
-import { ModelHarness } from "../service/harness/model-harness.js";
-import { executeMemoryToolCalls } from "../memory/tools.js";
+import { ModelHarness } from "../service/harness/model.js";
+import { executeWorkMemoryMaintenanceToolCalls } from "../memory/tools.js";
 import { MemoryStore } from "../memory/store.js";
 import { createDefaultTools, ToolNotFoundError, ToolPool, ToolValidationError } from "../tools/index.js";
 import { normalizeJsonObject } from "../tools/utils/json.js";
@@ -16,6 +16,7 @@ const memoryStore = new MemoryStore();
 const toolPool = new ToolPool();
 toolPool.registerMany(createDefaultTools(memoryStore));
 
+// 创建 Hono API 应用，集中挂载健康检查、会话、工具和聊天接口。
 export function createApp() {
   const app = new Hono();
 
@@ -132,6 +133,7 @@ export function createApp() {
 
     const scope = normalizeScope(body);
 
+    // 进入模型前先读取记忆：短期记忆由最近消息窗口组成，工作记忆直接注入 system prompt。
     const workMemory = memoryStore.getWorkMemory(scope);
     const shortTermMessages = memoryStore.getShortTermMessages(scope, 5);
     const userMessageId = memoryStore.addMessage(scope, "user", body.question.trim());
@@ -166,6 +168,7 @@ export function createApp() {
           detail: `Started step ${stepId}.`,
         });
 
+        // 将模型事件流转发为 SSE，同时累积完整助手回答用于后续持久化。
         for await (const event of harness.stream(modelRequest)) {
           if (event.type === "delta") {
             assistantAnswer += event.content;
@@ -196,6 +199,7 @@ export function createApp() {
               status: "done",
               detail: `Completed step ${stepId}.`,
             });
+            // 主回答完成后单独规划工作记忆维护，再由后端执行实际工具调用。
             const calls = await harness.planMemoryMaintenance({
               provider: modelRequest.provider,
               model: modelRequest.model,
@@ -206,7 +210,7 @@ export function createApp() {
               answer: assistantAnswer,
               workMemory,
             });
-            const appliedTools = await executeMemoryToolCalls(memoryStore, scope, calls);
+            const appliedTools = await executeWorkMemoryMaintenanceToolCalls(memoryStore, scope, calls);
             await writeTraceSse({
               writer,
               encoder,

@@ -18,12 +18,14 @@ type SqliteModule = {
   DatabaseSync: new (path: string) => DatabaseSync;
 };
 
+// 记忆读写的作用域：同一个项目下的不同会话彼此隔离。
 export type MemoryScope = {
   projectName: string;
   projectPath: string;
   sessionId: string;
 };
 
+// 持久化的对话消息，用于历史记录和短期记忆窗口。
 export type ConversationMessage = {
   id: number;
   role: "user" | "assistant";
@@ -31,6 +33,7 @@ export type ConversationMessage = {
   createdAt: string;
 };
 
+// 一条会话执行轨迹，用于前端展示请求、模型、工具等步骤状态。
 export type SessionTrace = {
   id: string;
   name: string;
@@ -40,6 +43,7 @@ export type SessionTrace = {
   createdAt: string;
 };
 
+// 会话列表页使用的摘要信息。
 export type SessionSummary = {
   projectPath: string;
   sessionId: string;
@@ -51,6 +55,7 @@ export type SessionSummary = {
   lastMessage: string | null;
 };
 
+// 一次用户提问到助手回答的执行步骤。
 export type ConversationStep = {
   id: number;
   title: string;
@@ -64,6 +69,7 @@ export type ConversationStep = {
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as SqliteModule;
 
+// SQLite 记忆仓库：统一维护会话、消息、步骤、轨迹和工作记忆。
 export class MemoryStore {
   private readonly db: DatabaseSync;
 
@@ -75,6 +81,7 @@ export class MemoryStore {
     this.migrate();
   }
 
+  // 确保当前项目会话存在，不存在就创建，存在则刷新项目名和更新时间。
   ensureSession(scope: MemoryScope) {
     this.db
       .prepare(
@@ -88,6 +95,7 @@ export class MemoryStore {
       .run(scope.projectPath, scope.sessionId, scope.projectName);
   }
 
+  // 追加一条用户或助手消息，并返回消息 id。
   addMessage(scope: MemoryScope, role: ConversationMessage["role"], content: string) {
     this.ensureSession(scope);
     const result = this.db
@@ -102,6 +110,7 @@ export class MemoryStore {
     return Number(result.lastInsertRowid);
   }
 
+  // 读取最近 N 条消息作为短期记忆滑动窗口，返回时恢复为时间正序。
   getShortTermMessages(scope: MemoryScope, limit = 5): ModelMessage[] {
     const rows = this.db
       .prepare(
@@ -121,6 +130,7 @@ export class MemoryStore {
     }));
   }
 
+  // 读取会话历史消息，主要给历史接口和前端回放使用。
   getMessages(scope: MemoryScope, limit = 100): ConversationMessage[] {
     const rows = this.db
       .prepare(
@@ -137,6 +147,7 @@ export class MemoryStore {
     return rows.reverse();
   }
 
+  // 创建一次问答步骤，先标记为 running，完成或失败后再更新状态。
   createStep(scope: MemoryScope, userMessageId: number, title: string) {
     this.ensureSession(scope);
     const result = this.db
@@ -159,6 +170,7 @@ export class MemoryStore {
     return Number(result.lastInsertRowid);
   }
 
+  // 将步骤标记为完成，并关联助手回复消息。
   completeStep(scope: MemoryScope, stepId: number, assistantMessageId: number) {
     this.db
       .prepare(
@@ -172,6 +184,7 @@ export class MemoryStore {
     this.touchSession(scope);
   }
 
+  // 将步骤标记为失败，便于前端展示异常状态。
   failStep(scope: MemoryScope, stepId: number) {
     this.db
       .prepare(
@@ -185,6 +198,7 @@ export class MemoryStore {
     this.touchSession(scope);
   }
 
+  // 读取当前会话的步骤列表。
   getSteps(scope: MemoryScope, limit = 100): ConversationStep[] {
     return this.db
       .prepare(
@@ -206,6 +220,7 @@ export class MemoryStore {
       .all(scope.projectPath, scope.sessionId, limit) as ConversationStep[];
   }
 
+  // 读取当前会话的工作记忆；没有记录时返回空字符串。
   getWorkMemory(scope: MemoryScope) {
     const row = this.db
       .prepare(
@@ -220,6 +235,7 @@ export class MemoryStore {
     return row?.content ?? "";
   }
 
+  // 覆盖写入工作记忆，适合模型维护阶段提交整理后的完整内容。
   updateWorkMemory(scope: MemoryScope, content: string) {
     this.ensureSession(scope);
     this.db
@@ -235,6 +251,7 @@ export class MemoryStore {
     this.touchSession(scope);
   }
 
+  // 清空当前会话的工作记忆。
   clearWorkMemory(scope: MemoryScope) {
     this.db
       .prepare(
@@ -247,6 +264,7 @@ export class MemoryStore {
     this.touchSession(scope);
   }
 
+  // 记录一条执行轨迹，同时刷新会话更新时间。
   addTrace(scope: MemoryScope, trace: Omit<SessionTrace, "createdAt">) {
     this.ensureSession(scope);
     this.db
@@ -260,6 +278,7 @@ export class MemoryStore {
     this.touchSession(scope);
   }
 
+  // 读取当前会话的执行轨迹，返回时恢复为时间正序。
   getTraces(scope: MemoryScope, limit = 100): SessionTrace[] {
     const rows = this.db
       .prepare(
@@ -276,6 +295,7 @@ export class MemoryStore {
     return rows.reverse();
   }
 
+  // 列出会话摘要；传入 projectPath 时只返回该项目下的会话。
   listSessions(projectPath?: string): SessionSummary[] {
     const sql = projectPath
       ? `
@@ -339,6 +359,7 @@ export class MemoryStore {
       : (this.db.prepare(sql).all() as SessionSummary[]);
   }
 
+  // 刷新会话更新时间，用于会话列表排序。
   private touchSession(scope: MemoryScope) {
     this.db
       .prepare(
@@ -351,6 +372,7 @@ export class MemoryStore {
       .run(scope.projectPath, scope.sessionId);
   }
 
+  // 初始化或补齐 SQLite 表结构和索引。
   private migrate() {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS sessions (

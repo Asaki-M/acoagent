@@ -4,6 +4,7 @@ import { buildMemorySystemInstruction } from "../../memory/tools.js";
 
 const MAX_FILE_CHARS = 12_000;
 
+// 将前端传入的文件压缩成模型可读的上下文片段，并限制单文件长度。
 function compactFiles(files: CodeFile[]) {
   if (!files.length) {
     return "No project files were provided.";
@@ -22,6 +23,7 @@ function compactFiles(files: CodeFile[]) {
     .join("\n\n");
 }
 
+// 将 HTTP chat 请求组装成统一的模型请求，包括记忆、文件上下文和模型参数。
 export function buildCodeQuestionRequest(
   body: ChatRequestBody,
   memory?: {
@@ -72,6 +74,7 @@ export function buildCodeQuestionRequest(
   };
 }
 
+// 归一化 provider 名称，非法值回退到 Vertex。
 function normalizeProvider(provider: string): ModelProviderName {
   if (provider === "openai" || provider === "mock" || provider === "vertex") {
     return provider;
@@ -79,6 +82,7 @@ function normalizeProvider(provider: string): ModelProviderName {
   return "vertex";
 }
 
+// 根据 provider 选择默认模型，允许环境变量覆盖。
 function defaultModelFor(provider: ModelProviderName) {
   if (provider === "openai") return process.env.OPENAI_MODEL || "gpt-4.1-mini";
   if (provider === "mock") return "mock-code-assistant";

@@ -24,7 +24,8 @@ const toolStatusOutputSchema = z.object({
   ok: z.boolean(),
 });
 
-export const memoryToolSpecs = [
+// 工作记忆工具的基础规格：只描述工具契约，不绑定具体执行方式。
+export const workMemoryToolSpecs = [
   {
     name: "get_work_memory",
     description: "Read durable work memory for the current project and session.",
@@ -49,16 +50,17 @@ export const memoryToolSpecs = [
   },
 ] as const;
 
-export type MemoryToolName = (typeof memoryToolSpecs)[number]["name"];
-export type MemoryToolCallInput = {
-  name: MemoryToolName;
+export type WorkMemoryToolName = (typeof workMemoryToolSpecs)[number]["name"];
+export type WorkMemoryToolCallInput = {
+  name: WorkMemoryToolName;
   arguments: Record<string, unknown>;
 };
 
-export function createMemoryTools(memoryStore: MemoryStore): RegisteredTool[] {
+// 注册到平台工具池里的运行时工具，真正负责读写 SQLite 中的工作记忆。
+export function createWorkMemoryRuntimeTools(memoryStore: MemoryStore): RegisteredTool[] {
   return [
     createInternalApiTool({
-      ...memoryToolSpecs[0],
+      ...workMemoryToolSpecs[0],
       source: memorySource(),
       execute(_args, context) {
         return {
@@ -67,7 +69,7 @@ export function createMemoryTools(memoryStore: MemoryStore): RegisteredTool[] {
       },
     }),
     createInternalApiTool({
-      ...memoryToolSpecs[1],
+      ...workMemoryToolSpecs[1],
       source: memorySource(),
       execute(args, context) {
         const input = updateWorkMemoryParameters.parse(args);
@@ -76,7 +78,7 @@ export function createMemoryTools(memoryStore: MemoryStore): RegisteredTool[] {
       },
     }),
     createInternalApiTool({
-      ...memoryToolSpecs[2],
+      ...workMemoryToolSpecs[2],
       source: memorySource(),
       execute(_args, context) {
         memoryStore.clearWorkMemory(normalizeMemoryScope(context));
@@ -86,6 +88,7 @@ export function createMemoryTools(memoryStore: MemoryStore): RegisteredTool[] {
   ];
 }
 
+// 注入主对话的记忆说明。短期记忆本身由代码滑动窗口维护，这里只告诉模型它能看到什么。
 export function buildMemorySystemInstruction(workMemory: string) {
   return [
     "Memory:",
@@ -97,7 +100,8 @@ export function buildMemorySystemInstruction(workMemory: string) {
   ].join("\n");
 }
 
-export function buildMemoryMaintenancePrompt(input: {
+// 回答完成后单独跑一次维护规划，让模型只在值得长期保存时产出工具调用。
+export function buildWorkMemoryMaintenancePrompt(input: {
   question: string;
   answer: string;
   workMemory: string;
@@ -116,17 +120,23 @@ export function buildMemoryMaintenancePrompt(input: {
   ].join("\n");
 }
 
-export function memoryToolDeclarations() {
-  return memoryToolSpecs.map((tool) => ({
+// 给模型 function calling 使用的声明；它和运行时工具分开命名，避免和实际执行逻辑混在一起。
+export function createWorkMemoryMaintenanceToolDeclarations() {
+  return workMemoryToolSpecs.map((tool) => ({
     name: tool.name,
     description: tool.description,
     parameters: z.toJSONSchema(tool.parameters),
   }));
 }
 
-export async function executeMemoryToolCalls(store: MemoryStore, scope: MemoryScope, calls: MemoryToolCallInput[]) {
+// 执行模型规划出的工作记忆维护工具调用，并返回实际执行成功的工具名。
+export async function executeWorkMemoryMaintenanceToolCalls(
+  store: MemoryStore,
+  scope: MemoryScope,
+  calls: WorkMemoryToolCallInput[],
+) {
   const applied: string[] = [];
-  const tools = new Map(createMemoryTools(store).map((tool) => [tool.name, tool]));
+  const tools = new Map(createWorkMemoryRuntimeTools(store).map((tool) => [tool.name, tool]));
 
   for (const call of calls) {
     const tool = tools.get(call.name);

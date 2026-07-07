@@ -28,12 +28,15 @@ type McpToolInput = BaseToolInput & {
   invoke: (toolName: string, args: JsonObject) => Promise<JsonValue>;
 };
 
+// 通用 JSON 值 schema，用于校验工具输入输出都能被安全序列化。
 export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(jsonValueSchema), z.record(z.string(), jsonValueSchema)]),
 );
 
+// 通用 JSON 对象 schema，用于工具参数。
 export const jsonObjectSchema: z.ZodType<JsonObject> = z.record(z.string(), jsonValueSchema);
 
+// 创建基础运行时工具对象。
 export function createTool(input: ToolInput): RegisteredTool {
   return {
     type: "user-defined",
@@ -47,6 +50,7 @@ export function createTool(input: ToolInput): RegisteredTool {
   };
 }
 
+// 创建内部 API 工具，统一标记 source.type 为 internal_api。
 export function createInternalApiTool(input: ToolInput): RegisteredTool {
   return createTool({
     ...input,
@@ -57,6 +61,7 @@ export function createInternalApiTool(input: ToolInput): RegisteredTool {
   });
 }
 
+// 创建 HTTP 外部服务工具，把工具调用转成一次 fetch 请求。
 export function createExternalServiceTool(input: HttpToolInput): RegisteredTool {
   return createTool({
     name: input.name,
@@ -93,6 +98,7 @@ export function createExternalServiceTool(input: HttpToolInput): RegisteredTool 
   });
 }
 
+// 创建 MCP 工具适配器，把平台工具调用委托给 MCP server。
 export function createMcpTool(input: McpToolInput): RegisteredTool {
   return createTool({
     name: input.name,
@@ -114,6 +120,7 @@ export function createMcpTool(input: McpToolInput): RegisteredTool {
   });
 }
 
+// 根据响应类型解析工具返回值，JSON 响应会继续做 schema 校验。
 async function parseResponse(response: Response): Promise<JsonValue> {
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {

@@ -1,5 +1,7 @@
+// embedding 向量类型。
 export type Vector = number[];
 
+// 计算两个向量的余弦相似度，用于工具搜索排序。
 export function cosineSimilarity(left: Vector, right: Vector) {
   const length = Math.min(left.length, right.length);
   let dot = 0;
@@ -16,6 +18,7 @@ export function cosineSimilarity(left: Vector, right: Vector) {
   return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
 }
 
+// 将工具定义拼成可向量化的索引文本。
 export function buildToolIndexText(input: {
   name: string;
   description: string;

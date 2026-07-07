@@ -7,9 +7,13 @@ import type {
   ModelRequest,
   ModelStreamChunk,
 } from "../../service/harness/types.js";
-import { buildMemoryMaintenancePrompt, memoryToolDeclarations } from "../../memory/tools.js";
+import {
+  buildWorkMemoryMaintenancePrompt,
+  createWorkMemoryMaintenanceToolDeclarations,
+} from "../../memory/tools.js";
 import { isMemoryToolCall } from "./utils/memory-tool-calls.js";
 
+// 创建 Vertex AI 模型适配器，负责 Gemini 流式生成和工作记忆维护规划。
 export function createVertexProvider(): ModelProvider {
   const project = process.env.VERTEX_AI_PROJECT;
   const location = process.env.VERTEX_AI_LOCATION || "us-central1";
@@ -17,9 +21,11 @@ export function createVertexProvider(): ModelProvider {
   return {
     name: "vertex",
     defaultModel: process.env.VERTEX_AI_MODEL || "gemini-2.5-flash",
+    // 判断 Vertex provider 是否配置了 GCP 项目。
     isConfigured() {
       return Boolean(project);
     },
+    // 发起 Gemini 流式生成，并把文本和 token 用量转换成统一 chunk。
     async *stream(request: ModelRequest): AsyncGenerator<ModelStreamChunk> {
       if (!project) {
         throw new Error("VERTEX_AI_PROJECT is required for the Vertex provider.");
@@ -67,6 +73,7 @@ export function createVertexProvider(): ModelProvider {
         outputTokens: usageMetadata?.candidatesTokenCount,
       };
     },
+    // 使用 Gemini function calling 规划工作记忆是否需要更新。
     async planMemoryMaintenance(request: MemoryMaintenanceRequest): Promise<MemoryToolCall[]> {
       if (!project) return [];
 
@@ -78,7 +85,7 @@ export function createVertexProvider(): ModelProvider {
 
       const response = await client.models.generateContent({
         model: request.model,
-        contents: buildMemoryMaintenancePrompt(request),
+        contents: buildWorkMemoryMaintenancePrompt(request),
         config: {
           temperature: 0,
           systemInstruction:
@@ -90,7 +97,7 @@ export function createVertexProvider(): ModelProvider {
           },
           tools: [
             {
-              functionDeclarations: memoryToolDeclarations().map((tool) => ({
+              functionDeclarations: createWorkMemoryMaintenanceToolDeclarations().map((tool) => ({
                 name: tool.name,
                 description: tool.description,
                 parametersJsonSchema: tool.parameters,

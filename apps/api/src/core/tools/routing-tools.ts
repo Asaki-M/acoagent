@@ -17,6 +17,7 @@ const callToolParameters = z
   })
   .strict();
 
+// 创建给模型使用的工具路由工具：先搜索工具，再按名称调用工具。
 export function createToolRoutingTools(toolPool: ToolPool): RegisteredTool[] {
   return [
     createTool({

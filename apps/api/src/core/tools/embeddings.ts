@@ -2,12 +2,14 @@ import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import type { Vector } from "./utils/vector.js";
 
+// 工具搜索使用的向量化 provider 接口。
 export type EmbeddingProvider = {
   name: string;
   isConfigured(): boolean;
   embed(text: string): Promise<Vector>;
 };
 
+// 根据环境变量选择可用的 embedding provider，用于工具向量检索。
 export function createEmbeddingProvider(): EmbeddingProvider {
   const requested = process.env.TOOL_EMBEDDING_PROVIDER;
   const providers = [createOpenAIEmbeddingProvider(), createVertexEmbeddingProvider()];
@@ -19,6 +21,7 @@ export function createEmbeddingProvider(): EmbeddingProvider {
   return providers.find((provider) => provider.isConfigured()) ?? createMissingEmbeddingProvider("unconfigured");
 }
 
+// OpenAI embedding 适配器。
 function createOpenAIEmbeddingProvider(): EmbeddingProvider {
   return {
     name: "openai",
@@ -42,6 +45,7 @@ function createOpenAIEmbeddingProvider(): EmbeddingProvider {
   };
 }
 
+// Vertex embedding 适配器。
 function createVertexEmbeddingProvider(): EmbeddingProvider {
   const project = process.env.VERTEX_AI_PROJECT;
   const location = process.env.VERTEX_AI_LOCATION || "us-central1";
@@ -71,6 +75,7 @@ function createVertexEmbeddingProvider(): EmbeddingProvider {
   };
 }
 
+// 没有可用 embedding 配置时返回占位 provider，实际调用时给出明确错误。
 function createMissingEmbeddingProvider(name: string): EmbeddingProvider {
   return {
     name,

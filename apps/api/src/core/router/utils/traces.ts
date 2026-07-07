@@ -3,6 +3,7 @@ import { makeTrace, writeSse } from "../../transport/sse.js";
 import type { TraceStatus } from "../../types/chat.js";
 import type { normalizeScope } from "./scope.js";
 
+// 同时持久化 trace 并通过 SSE 推送给前端。
 export async function writeTraceSse(input: {
   writer: WritableStreamDefaultWriter<Uint8Array>;
   encoder: InstanceType<typeof TextEncoder>;
