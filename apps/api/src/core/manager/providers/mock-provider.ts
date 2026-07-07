@@ -1,4 +1,4 @@
-import type { MemoryMaintenanceRequest, ModelProvider, ModelRequest, ModelStreamChunk } from "../harness/types.js";
+import type { MemoryMaintenanceRequest, ModelProvider, ModelRequest, ModelStreamChunk } from "../../service/harness/types.js";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

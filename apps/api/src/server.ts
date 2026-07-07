@@ -5,7 +5,7 @@ for (const path of ["../../.env.local", "../../.env", ".env.local", ".env"]) {
   config({ path, override: false, quiet: true });
 }
 
-const { createApp } = await import("./app/router.js");
+const { createApp } = await import("./core/router/router.js");
 
 const port = Number(process.env.API_PORT || 8787);
 const app = createApp();

@@ -1,6 +1,6 @@
-import type { ChatRequestBody, CodeFile } from "../types/chat.js";
+import type { ChatRequestBody, CodeFile } from "../../types/chat.js";
 import type { ModelMessage, ModelProviderName, ModelRequest } from "./types.js";
-import { buildMemorySystemInstruction } from "../memory/tools.js";
+import { buildMemorySystemInstruction } from "../../memory/tools.js";
 
 const MAX_FILE_CHARS = 12_000;
 

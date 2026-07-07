@@ -6,8 +6,9 @@ import type {
   ModelProvider,
   ModelRequest,
   ModelStreamChunk,
-} from "../harness/types.js";
-import { buildMemoryMaintenancePrompt, memoryToolDeclarations } from "../memory/tools.js";
+} from "../../service/harness/types.js";
+import { buildMemoryMaintenancePrompt, memoryToolDeclarations } from "../../memory/tools.js";
+import { isMemoryToolCall } from "./utils/memory-tool-calls.js";
 
 export function createVertexProvider(): ModelProvider {
   const project = process.env.VERTEX_AI_PROJECT;
@@ -109,10 +110,4 @@ export function createVertexProvider(): ModelProvider {
       );
     },
   };
-}
-
-function isMemoryToolCall(call: { name?: string; arguments: Record<string, unknown> }): call is MemoryToolCall {
-  return (
-    call.name === "get_work_memory" || call.name === "update_work_memory" || call.name === "clear_work_memory"
-  );
 }

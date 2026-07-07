@@ -1,14 +1,20 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { buildCodeQuestionRequest } from "../harness/context.js";
-import { ModelHarness } from "../harness/model-harness.js";
+import { buildCodeQuestionRequest } from "../service/harness/context.js";
+import { ModelHarness } from "../service/harness/model-harness.js";
 import { executeMemoryToolCalls } from "../memory/tools.js";
 import { MemoryStore } from "../memory/store.js";
+import { createDefaultTools, ToolNotFoundError, ToolPool, ToolValidationError } from "../tools/index.js";
+import { normalizeJsonObject } from "../tools/utils/json.js";
 import { makeTrace, writeSse } from "../transport/sse.js";
-import type { ChatRequestBody, TraceStatus } from "../types/chat.js";
+import type { ChatRequestBody } from "../types/chat.js";
+import { normalizeScope } from "./utils/scope.js";
+import { writeTraceSse } from "./utils/traces.js";
 
 const harness = ModelHarness.fromEnv();
 const memoryStore = new MemoryStore();
+const toolPool = new ToolPool();
+toolPool.registerMany(createDefaultTools(memoryStore));
 
 export function createApp() {
   const app = new Hono();
@@ -66,6 +72,57 @@ export function createApp() {
     });
   });
 
+  app.get("/api/tools", async (context) => {
+    return context.json({
+      tools: toolPool.listTools(),
+    });
+  });
+
+  app.post("/api/tools/search", async (context) => {
+    const body = (await context.req.json()) as { query?: string; topK?: number };
+    const query = body.query?.trim();
+
+    if (!query) {
+      return context.json({ message: "Query is required." }, 400);
+    }
+
+    try {
+      return context.json({
+        tools: await toolPool.searchTools(query, body.topK),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Tool search failed.";
+      return context.json({ message }, 503);
+    }
+  });
+
+  app.post("/api/tools/call", async (context) => {
+    const body = (await context.req.json()) as ChatRequestBody & {
+      name?: string;
+      arguments?: Record<string, unknown>;
+    };
+    const name = body.name?.trim();
+
+    if (!name) {
+      return context.json({ message: "Tool name is required." }, 400);
+    }
+
+    try {
+      const result = await toolPool.callTool(name, normalizeJsonObject(body.arguments), normalizeScope(body));
+      return context.json(result);
+    } catch (error) {
+      if (error instanceof ToolNotFoundError) {
+        return context.json({ message: error.message }, 404);
+      }
+
+      if (error instanceof ToolValidationError) {
+        return context.json({ message: error.message }, 400);
+      }
+
+      throw error;
+    }
+  });
+
   app.post("/api/chat", async (context) => {
     const body = (await context.req.json()) as ChatRequestBody;
 
@@ -90,15 +147,24 @@ export function createApp() {
 
     void (async () => {
       try {
-        await writeTraceSse(
+        await writeTraceSse({
           writer,
           encoder,
+          memoryStore,
           scope,
-          "hono.request",
-          "done",
-          `Accepted ${modelRequest.files.length} files for code Q&A.`,
-        );
-        await writeTraceSse(writer, encoder, scope, "step.create", "done", `Started step ${stepId}.`);
+          name: "hono.request",
+          status: "done",
+          detail: `Accepted ${modelRequest.files.length} files for code Q&A.`,
+        });
+        await writeTraceSse({
+          writer,
+          encoder,
+          memoryStore,
+          scope,
+          name: "step.create",
+          status: "done",
+          detail: `Started step ${stepId}.`,
+        });
 
         for await (const event of harness.stream(modelRequest)) {
           if (event.type === "delta") {
@@ -107,13 +173,29 @@ export function createApp() {
           }
 
           if (event.type === "trace") {
-            await writeTraceSse(writer, encoder, scope, event.name, event.status ?? "done", event.detail);
+            await writeTraceSse({
+              writer,
+              encoder,
+              memoryStore,
+              scope,
+              name: event.name,
+              status: event.status ?? "done",
+              detail: event.detail,
+            });
           }
 
           if (event.type === "done") {
             const assistantMessageId = memoryStore.addMessage(scope, "assistant", assistantAnswer);
             memoryStore.completeStep(scope, stepId, assistantMessageId);
-            await writeTraceSse(writer, encoder, scope, "step.complete", "done", `Completed step ${stepId}.`);
+            await writeTraceSse({
+              writer,
+              encoder,
+              memoryStore,
+              scope,
+              name: "step.complete",
+              status: "done",
+              detail: `Completed step ${stepId}.`,
+            });
             const calls = await harness.planMemoryMaintenance({
               provider: modelRequest.provider,
               model: modelRequest.model,
@@ -124,24 +206,33 @@ export function createApp() {
               answer: assistantAnswer,
               workMemory,
             });
-            const appliedTools = executeMemoryToolCalls(memoryStore, scope, calls);
-            await writeTraceSse(
+            const appliedTools = await executeMemoryToolCalls(memoryStore, scope, calls);
+            await writeTraceSse({
               writer,
               encoder,
+              memoryStore,
               scope,
-              "memory.maintenance",
-              "done",
-              appliedTools.length
+              name: "memory.maintenance",
+              status: "done",
+              detail: appliedTools.length
                 ? `Applied ${appliedTools.join(", ")}.`
                 : "No durable work memory changes were needed.",
-            );
+            });
             await writeSse(writer, encoder, "done", { ok: true });
           }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown chat error.";
         memoryStore.failStep(scope, stepId);
-        await writeTraceSse(writer, encoder, scope, "hono.error", "error", message);
+        await writeTraceSse({
+          writer,
+          encoder,
+          memoryStore,
+          scope,
+          name: "hono.error",
+          status: "error",
+          detail: message,
+        });
         await writeSse(writer, encoder, "error", { message });
       } finally {
         await writer.close();
@@ -158,26 +249,4 @@ export function createApp() {
   });
 
   return app;
-}
-
-function normalizeScope(body: Pick<ChatRequestBody, "projectName" | "projectPath" | "sessionId">) {
-  const projectName = body.projectName || "Local project";
-  return {
-    projectName,
-    projectPath: body.projectPath || projectName,
-    sessionId: body.sessionId || "default",
-  };
-}
-
-async function writeTraceSse(
-  writer: WritableStreamDefaultWriter<Uint8Array>,
-  encoder: InstanceType<typeof TextEncoder>,
-  scope: ReturnType<typeof normalizeScope>,
-  name: string,
-  status: TraceStatus,
-  detail: string,
-) {
-  const trace = makeTrace(name, status, detail);
-  memoryStore.addTrace(scope, trace);
-  await writeSse(writer, encoder, "trace", trace);
 }

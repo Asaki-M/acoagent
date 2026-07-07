@@ -6,8 +6,10 @@ import type {
   ModelProvider,
   ModelRequest,
   ModelStreamChunk,
-} from "../harness/types.js";
-import { buildMemoryMaintenancePrompt, memoryToolDeclarations } from "../memory/tools.js";
+} from "../../service/harness/types.js";
+import { buildMemoryMaintenancePrompt, memoryToolDeclarations } from "../../memory/tools.js";
+import { parseJsonObject } from "./utils/json.js";
+import { isMemoryToolCall } from "./utils/memory-tool-calls.js";
 
 export function createOpenAIProvider(): ModelProvider {
   return {
@@ -84,20 +86,4 @@ export function createOpenAIProvider(): ModelProvider {
       );
     },
   };
-}
-
-function parseJsonObject(value: string) {
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function isMemoryToolCall(call: { name: string; arguments: Record<string, unknown> } | undefined): call is MemoryToolCall {
-  return (
-    Boolean(call) &&
-    (call?.name === "get_work_memory" || call?.name === "update_work_memory" || call?.name === "clear_work_memory")
-  );
 }

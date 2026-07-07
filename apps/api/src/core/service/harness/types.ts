@@ -1,4 +1,5 @@
-import type { CodeFile } from "../types/chat.js";
+import type { CodeFile } from "../../types/chat.js";
+import type { MemoryToolName } from "../../memory/tools.js";
 
 export type ModelProviderName = "vertex" | "openai" | "mock";
 
@@ -19,8 +20,6 @@ export type ModelRequest = {
   temperature: number;
   maxOutputTokens: number;
 };
-
-export type MemoryToolName = "get_work_memory" | "update_work_memory" | "clear_work_memory";
 
 export type MemoryToolCall = {
   name: MemoryToolName;

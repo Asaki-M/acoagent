@@ -6,9 +6,9 @@ import type {
   ModelRequest,
   ModelStreamChunk,
 } from "./types.js";
-import { createMockProvider } from "../providers/mock-provider.js";
-import { createOpenAIProvider } from "../providers/openai-provider.js";
-import { createVertexProvider } from "../providers/vertex-provider.js";
+import { createMockProvider } from "../../manager/providers/mock-provider.js";
+import { createOpenAIProvider } from "../../manager/providers/openai-provider.js";
+import { createVertexProvider } from "../../manager/providers/vertex-provider.js";
 
 export type HarnessEvent =
   | {

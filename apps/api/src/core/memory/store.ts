@@ -1,9 +1,9 @@
 import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import type { ModelMessage } from "../harness/types.js";
+import type { ModelMessage } from "../service/harness/types.js";
 import type { TraceStatus } from "../types/chat.js";
+import { defaultDatabasePath, truncateTitle } from "./utils/store-helpers.js";
 
 type DatabaseSync = {
   exec(sql: string): void;
@@ -63,12 +63,6 @@ export type ConversationStep = {
 
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as SqliteModule;
-
-function defaultDatabasePath() {
-  return process.env.MEMORY_DB_PATH
-    ? resolve(process.env.MEMORY_DB_PATH)
-    : fileURLToPath(new URL("../../.data/memory.sqlite", import.meta.url));
-}
 
 export class MemoryStore {
   private readonly db: DatabaseSync;
@@ -436,9 +430,4 @@ export class MemoryStore {
         ON conversation_steps(project_path, session_id, id);
     `);
   }
-}
-
-function truncateTitle(value: string) {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  return normalized.length > 80 ? `${normalized.slice(0, 77)}...` : normalized || "Untitled step";
 }
