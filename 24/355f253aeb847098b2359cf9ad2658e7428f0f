@@ -1,0 +1,83 @@
+apps/api/src/core/memory/utils/store-helpers.ts
+  s_0b52bb8d4eee4d::t_fe6dfe867ff3fe 4,11
+apps/api/src/core/memory/tools.ts
+  s_0b52bb8d4eee4d::t_fe49a9aa0f2032 27-28,53-55,59-60,63,72,81,91,103-104,123-125,133-137,139
+  s_0b52bb8d4eee4d::t_e2ad80ab7ff644 132
+apps/api/src/core/service/harness/model.ts
+  s_0b52bb8d4eee4d::t_a86d2f1237c087 9-11,13,29,39,44,67,78,86
+apps/api/src/core/router/utils/traces.ts
+  s_0b52bb8d4eee4d::t_6bab3bc8651a32 6
+apps/api/src/core/tools/routing-tools.ts
+  s_0b52bb8d4eee4d::t_c7586f1e83f787 20
+apps/api/src/core/tools/default-tools.ts
+  s_0b52bb8d4eee4d::t_5a4c5d8b67930e 2
+  s_0b52bb8d4eee4d::t_87d69bdd7fe275 7
+  s_0b52bb8d4eee4d::t_163b019056d578 5
+apps/api/src/core/router/router.ts
+  s_0b52bb8d4eee4d::t_04472e01cbf07c 19,136,171,202
+  h_8d050896203f0f 4
+  s_0b52bb8d4eee4d::t_aa0d1859efa5c0 5,213
+apps/api/src/core/transport/sse.ts
+  s_0b52bb8d4eee4d::t_320ac306cb9845 3,12,17,28
+apps/api/src/core/tools/utils/json.ts
+  s_0b52bb8d4eee4d::t_81b8c05208b90d 3,14,19
+apps/api/src/core/service/harness/types.ts
+  s_0b52bb8d4eee4d::t_64dbd03e61fd4f 2,29
+  s_0b52bb8d4eee4d::t_bf54c021fd5473 4,7,13,27,33,44,61
+apps/api/src/core/router/utils/scope.ts
+  s_0b52bb8d4eee4d::t_5184aad0861ff4 3
+apps/api/src/core/manager/providers/utils/json.ts
+  s_0b52bb8d4eee4d::t_3e0b193bb0025e 1
+apps/api/src/core/tools/utils/vector.ts
+  s_0b52bb8d4eee4d::t_f6c81d81a10e95 4,21
+  s_0b52bb8d4eee4d::t_314741cabe0043 1
+apps/api/src/core/manager/providers/mock.ts
+  s_0b52bb8d4eee4d::t_485b92ec8b297f 5,10,14,35
+apps/api/src/core/tools/pool.ts
+  s_0b52bb8d4eee4d::t_c947b0919b5af1 24,31,38,43,49,54,77,92,113,124,132,140,152,158,172,178
+apps/api/src/core/manager/providers/openai.ts
+  s_0b52bb8d4eee4d::t_bf4b574d850637 17,22,26,57
+  s_0b52bb8d4eee4d::t_851d8303298c95 10-13,73,76
+apps/api/src/core/service/harness/context.ts
+  s_0b52bb8d4eee4d::t_edd34ac0e739e0 7,26,77,85
+apps/api/src/core/memory/store.ts
+  s_0b52bb8d4eee4d::t_208082cd7c6cfe 21,28,36,46,58,72,84,98,113,133,150,173,187,201,223,238,254,267,281,298,362,375
+apps/api/src/core/tools/embeddings.ts
+  s_0b52bb8d4eee4d::t_e4651762f7daff 5,12,24,48,78
+apps/api/src/core/manager/providers/utils/memory-tool-calls.ts
+  s_0b52bb8d4eee4d::t_d2761da5c35c33 6
+  s_0b52bb8d4eee4d::t_c26007cabb9cc5 2,4
+apps/api/src/core/types/chat.ts
+  s_0b52bb8d4eee4d::t_4588ccd05871a3 1,8,19,22
+apps/api/src/core/manager/providers/vertex.ts
+  s_0b52bb8d4eee4d::t_5b4d8cabadd7ea 10-13,88,100
+  s_0b52bb8d4eee4d::t_4e7b313c70eb61 16,24,28,76
+apps/api/src/core/memory/utils/tool-helpers.ts
+  s_0b52bb8d4eee4d::t_b7dcc416087037 4
+  s_0b52bb8d4eee4d::t_e72faf75ffd347 7,16,31
+apps/api/src/core/tools/adapters.ts
+  s_0b52bb8d4eee4d::t_c7ae686b116ce2 31,36,39,53,64,101,123
+apps/api/src/core/tools/types.ts
+  s_0b52bb8d4eee4d::t_791b9e5426580f 3,8,11,19,29,36,39,51,56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "24355f253aeb847098b2359cf9ad2658e7428f0f",
+  "prompts": {},
+  "humans": {
+    "h_8d050896203f0f": {
+      "author": "qinghuan <1041220793@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_0b52bb8d4eee4d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3a69-a461-7170-bd94-4c1ff46286e5",
+        "model": "gpt-5.5"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
