@@ -349,7 +349,9 @@ export default function Home() {
   const fileTree = useMemo(() => buildFileTree(files), [files]);
 
   useEffect(() => {
-    setSessionId(loadSessionId());
+    queueMicrotask(() => {
+      setSessionId(loadSessionId());
+    });
   }, []);
 
   useEffect(() => {

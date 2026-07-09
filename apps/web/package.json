@@ -12,6 +12,7 @@
   "dependencies": {
     "@antv/infographic": "^0.2.19",
     "@terrastruct/d2": "^0.1.33",
+    "@xyflow/react": "^12.11.2",
     "lucide-react": "^1.22.0",
     "markstream-react": "^0.0.53",
     "next": "16.2.9",

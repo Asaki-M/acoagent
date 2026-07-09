@@ -13,10 +13,8 @@ DONE
 TODO
 
 ## 自定义Workflow
-TODO
-
-## harness 架构
-TODO
+DONE
+初步实现，参考VoltAgent做的
 
 ## Tools
 DONE
@@ -42,4 +40,7 @@ DONE
 记忆储存：每一条对话记录需要添加到数据库，会根据打开的项目目录和会话id来存储，方便可以根据项目来新建会话以及用之前的历史会话
 
 ## Loop engineering
+TODO
+
+## harness 架构
 TODO
