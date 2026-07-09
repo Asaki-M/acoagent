@@ -23,6 +23,11 @@ export type HarnessEvent =
       status?: "queued" | "running" | "done" | "error";
     }
   | {
+      type: "usage";
+      inputTokens?: number;
+      outputTokens?: number;
+    }
+  | {
       type: "done";
     };
 
@@ -91,10 +96,9 @@ export class ModelHarness {
 
     if (chunk.type === "usage") {
       return {
-        type: "trace",
-        name: "harness.usage",
-        status: "done",
-        detail: `Input tokens: ${chunk.inputTokens ?? "n/a"}, output tokens: ${chunk.outputTokens ?? "n/a"}.`,
+        type: "usage",
+        inputTokens: chunk.inputTokens,
+        outputTokens: chunk.outputTokens,
       };
     }
 

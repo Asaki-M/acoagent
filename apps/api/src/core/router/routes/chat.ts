@@ -73,6 +73,18 @@ export function registerChatRoutes(
             });
           }
 
+          if (event.type === "usage") {
+            await writeTraceSse({
+              writer,
+              encoder,
+              memoryStore,
+              scope,
+              name: "harness.usage",
+              status: "done",
+              detail: `Input tokens: ${event.inputTokens ?? "n/a"}, output tokens: ${event.outputTokens ?? "n/a"}.`,
+            });
+          }
+
           if (event.type === "done") {
             const assistantMessageId = memoryStore.addMessage(scope, "assistant", assistantAnswer);
             memoryStore.completeStep(scope, stepId, assistantMessageId);

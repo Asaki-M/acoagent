@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { ModelHarness } from "../service/harness/model.js";
+import type { ModelProviderName } from "../service/harness/types.js";
 import { createWorkflowController, delay, executeWorkflow, createWorkflow } from "./engine.js";
 import { WorkflowStore, type PersistedWorkflow, type WorkflowNodeRecord } from "./store.js";
 import { andAgent, andAll, andBranch, andMap, andTap, andThen, andWhen, andWhile } from "./steps/index.js";
-import type { WorkflowDefinition, WorkflowRunSnapshot } from "./types/index.js";
+import type { WorkflowDefinition, WorkflowMapEntry, WorkflowRunSnapshot } from "./types/index.js";
 
 type StoredRun = {
   workflowId: string;
@@ -12,8 +14,14 @@ type StoredRun = {
   snapshot: WorkflowRunSnapshot;
 };
 
+type WorkflowNodeConfig = NonNullable<WorkflowNodeRecord["data"]["config"]>;
+type MapEntryConfig = NonNullable<WorkflowNodeConfig["mapEntries"]>[number];
+type ParallelStepConfig = NonNullable<WorkflowNodeConfig["parallelSteps"]>[number];
+type BranchConfig = NonNullable<WorkflowNodeConfig["branches"]>[number];
+
 const workflowStore = new WorkflowStore();
 const runs = new Map<string, StoredRun>();
+const modelHarness = ModelHarness.fromEnv();
 
 export function listWorkflows() {
   return workflowStore.listWorkflows();
@@ -122,20 +130,32 @@ function buildExecutableWorkflow(workflow: PersistedWorkflow): WorkflowDefinitio
         name: node.data.title,
       };
       const kind = normalizeStepKind(node.data.kind);
+      const config = node.data.config ?? {};
 
       if (kind === "andAgent") {
         return andAgent({
           ...base,
-          task: ({ data }) => `Run ${node.data.title} with ${JSON.stringify(data)}`,
+          task: ({ data }) => renderTemplate(config.task || `Run ${node.data.title} with {{data}}`, data),
           execute: async ({ data, reportUsage, signal }) => {
-            await delay(450, signal);
-            reportUsage(estimateAgentUsage(node.data.title, node.data.description, data));
+            const task = renderTemplate(config.task || node.data.description || node.data.title, data);
+            const output = await runAgentStep({
+              workflow,
+              node,
+              task,
+              outputSchema: config.outputSchema,
+              data,
+              signal,
+              reportUsage,
+            });
+
             return {
               ...(typeof data === "object" && data ? data : {}),
               [node.id]: {
                 kind: node.data.kind,
                 title: node.data.title,
-                output: node.data.description || "Agent step completed.",
+                task,
+                schema: config.outputSchema,
+                output,
               },
             };
           },
@@ -145,11 +165,18 @@ function buildExecutableWorkflow(workflow: PersistedWorkflow): WorkflowDefinitio
       if (kind === "andWhen") {
         return andWhen({
           ...base,
-          condition: () => true,
+          condition: ({ data }) => evaluateCondition(config.condition, data),
           step: andThen({
             id: `${node.id}-matched`,
             name: `${node.data.title} matched`,
-            execute: ({ data }) => data,
+            execute: ({ data }) => ({
+              ...(typeof data === "object" && data ? data : {}),
+              [node.id]: {
+                condition: config.condition,
+                execute: config.executeLogic,
+                matched: true,
+              },
+            }),
           }),
         });
       }
@@ -157,11 +184,7 @@ function buildExecutableWorkflow(workflow: PersistedWorkflow): WorkflowDefinitio
       if (kind === "andMap") {
         return andMap({
           ...base,
-          map: {
-            previous: { source: "data" },
-            node: { source: "value", value: node.data.title },
-            description: { source: "value", value: node.data.description },
-          },
+          map: parseMapConfig(config.mapEntries, config.mapJson, node.data.title, node.data.description),
         });
       }
 
@@ -170,39 +193,39 @@ function buildExecutableWorkflow(workflow: PersistedWorkflow): WorkflowDefinitio
           ...base,
           execute: async ({ signal }) => {
             await delay(150, signal);
+            void config.sideEffect;
           },
         });
       }
 
       if (kind === "andAll") {
+        const parallelSteps = parseNamedSteps(config.parallelSteps, config.parallelStepsJson, [
+          { name: `${node.data.title} A`, execute: "return { branch: 'a', data }" },
+          { name: `${node.data.title} B`, execute: "return { branch: 'b', data }" },
+        ]);
+
         return andAll({
           ...base,
-          steps: [
+          steps: parallelSteps.map((stepConfig, stepIndex) =>
             andThen({
-              id: `${node.id}-parallel-a`,
-              name: `${node.data.title} A`,
+              id: `${node.id}-parallel-${stepIndex + 1}`,
+              name: stepConfig.name,
               execute: async ({ data, signal }) => {
-                await delay(180, signal);
-                return { branch: "a", data };
+                await delay(180 + stepIndex * 40, signal);
+                return { name: stepConfig.name, execute: stepConfig.execute, data };
               },
             }),
-            andThen({
-              id: `${node.id}-parallel-b`,
-              name: `${node.data.title} B`,
-              execute: async ({ data, signal }) => {
-                await delay(220, signal);
-                return { branch: "b", data };
-              },
-            }),
-          ],
+          ),
         });
       }
 
       if (kind === "andWhile") {
         return andWhile({
           ...base,
-          maxIterations: 1,
-          condition: ({ data }) => !Boolean((data as Record<string, unknown>)[`${node.id}Done`]),
+          maxIterations: clampIterations(config.maxIterations),
+          condition: ({ data }) =>
+            evaluateCondition(config.condition, data) &&
+            !Boolean((data as Record<string, unknown>)[`${node.id}Done`]),
           steps: [
             andThen({
               id: `${node.id}-loop-body`,
@@ -210,6 +233,7 @@ function buildExecutableWorkflow(workflow: PersistedWorkflow): WorkflowDefinitio
               execute: ({ data }) => ({
                 ...(typeof data === "object" && data ? data : {}),
                 [`${node.id}Done`]: true,
+                [`${node.id}LoopBody`]: config.loopBody,
               }),
             }),
           ],
@@ -217,21 +241,22 @@ function buildExecutableWorkflow(workflow: PersistedWorkflow): WorkflowDefinitio
       }
 
       if (kind === "andBranch") {
+        const branches = parseBranchConfig(config.branches, config.branchesJson, node.data.title);
+
         return andBranch({
           ...base,
-          branches: [
-            {
-              condition: () => true,
+          branches: branches.map((branch, branchIndex) => ({
+              condition: ({ data }) => evaluateCondition(branch.condition, data),
               step: andThen({
-                id: `${node.id}-branch`,
-                name: `${node.data.title} branch`,
+                id: `${node.id}-branch-${branchIndex + 1}`,
+                name: branch.name,
                 execute: ({ data }) => ({
                   ...(typeof data === "object" && data ? data : {}),
-                  branch: node.data.title,
+                  branch: branch.name,
+                  branchExecute: branch.step,
                 }),
               }),
-            },
-          ],
+            })),
         });
       }
 
@@ -243,6 +268,7 @@ function buildExecutableWorkflow(workflow: PersistedWorkflow): WorkflowDefinitio
             return {
               input: data,
               trigger: node.data.title,
+              execute: config.executeLogic,
             };
           },
         });
@@ -254,7 +280,10 @@ function buildExecutableWorkflow(workflow: PersistedWorkflow): WorkflowDefinitio
           await delay(250, signal);
           return {
             ...(typeof data === "object" && data ? data : {}),
-            [node.id]: node.data.description || node.data.title,
+            [node.id]: {
+              execute: config.executeLogic,
+              output: node.data.description || node.data.title,
+            },
           };
         },
       });
@@ -308,16 +337,188 @@ function orderNodes(workflow: PersistedWorkflow) {
   return [...ordered, ...workflow.nodes.filter((node) => !visited.has(node.id))];
 }
 
-function estimateAgentUsage(title: string, description: string, data: unknown) {
-  const prompt = `Run ${title} with ${JSON.stringify(data)}\n${description}`;
-  const output = description || "Agent step completed.";
+async function runAgentStep(options: {
+  workflow: PersistedWorkflow;
+  node: WorkflowNodeRecord;
+  task: string;
+  outputSchema?: string;
+  data: unknown;
+  signal: AbortSignal;
+  reportUsage: (usage: { inputTokens?: number; outputTokens?: number }) => void;
+}) {
+  let output = "";
+  const question = [
+    options.task,
+    "",
+    "Current workflow data:",
+    JSON.stringify(options.data, null, 2),
+    options.outputSchema ? `\nReturn output matching this schema hint:\n${options.outputSchema}` : "",
+  ].join("\n");
 
-  return {
-    inputTokens: estimateTokens(prompt),
-    outputTokens: estimateTokens(output),
-  };
+  for await (const event of modelHarness.stream({
+    provider: resolveWorkflowModelProvider(),
+    model: process.env.WORKFLOW_MODEL || "",
+    projectName: "Workflow Builder",
+    projectPath: "workflow",
+    sessionId: options.workflow.id,
+    question,
+    files: [],
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are executing a single workflow agent step. Return only the useful step output for downstream workflow data.",
+      },
+      {
+        role: "user",
+        content: question,
+      },
+    ],
+    temperature: 0.2,
+    maxOutputTokens: 800,
+  })) {
+    if (options.signal.aborted) {
+      throw options.signal.reason instanceof Error ? options.signal.reason : new Error("Workflow agent step aborted.");
+    }
+
+    if (event.type === "delta") {
+      output += event.content;
+    }
+
+    if (event.type === "usage") {
+      options.reportUsage({
+        inputTokens: event.inputTokens,
+        outputTokens: event.outputTokens,
+      });
+    }
+  }
+
+  return output.trim() || "Agent returned no output.";
 }
 
-function estimateTokens(value: string) {
-  return Math.max(1, Math.ceil(value.length / 4));
+function resolveWorkflowModelProvider(): ModelProviderName {
+  const provider = process.env.WORKFLOW_MODEL_PROVIDER || process.env.MODEL_PROVIDER;
+  if (provider === "openai" || provider === "vertex" || provider === "mock") return provider;
+  return "vertex";
+}
+
+function renderTemplate(template: string, data: unknown) {
+  return template.replaceAll("{{data}}", JSON.stringify(data));
+}
+
+function evaluateCondition(condition: string | undefined, data: unknown) {
+  const normalized = condition?.trim().toLowerCase();
+  if (!normalized) return true;
+  if (normalized === "false" || normalized.includes("=== false")) return false;
+  if (normalized.includes("requireapproval")) {
+    return Boolean((data as Record<string, unknown> | undefined)?.requireApproval);
+  }
+  if (normalized.includes("approved")) {
+    return Boolean((data as Record<string, unknown> | undefined)?.approved);
+  }
+  return true;
+}
+
+function parseMapConfig(
+  entries: MapEntryConfig[] | undefined,
+  value: string | undefined,
+  title: string,
+  description: string,
+): Record<string, WorkflowMapEntry> {
+  const fallback: Record<string, WorkflowMapEntry> = {
+    previous: { source: "data" },
+    node: { source: "value", value: title },
+    description: { source: "value", value: description },
+  };
+
+  if (Array.isArray(entries) && entries.length > 0) {
+    return entries.reduce<Record<string, WorkflowMapEntry>>((map, entry) => {
+      if (!entry.key.trim()) return map;
+
+      if (entry.source === "value") {
+        map[entry.key] = { source: "value", value: entry.value };
+        return map;
+      }
+
+      if (entry.source === "step") {
+        map[entry.key] = { source: "step", stepId: entry.stepId, path: entry.path || undefined };
+        return map;
+      }
+
+      map[entry.key] = { source: entry.source, path: entry.path || undefined };
+      return map;
+    }, {});
+  }
+
+  if (!value?.trim()) return fallback;
+
+  try {
+    const parsed = JSON.parse(value) as Record<string, WorkflowMapEntry>;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseNamedSteps(
+  steps: ParallelStepConfig[] | undefined,
+  value: string | undefined,
+  fallback: Array<{ name: string; execute: string }>,
+) {
+  if (Array.isArray(steps) && steps.length > 0) {
+    return steps.map((step, index) => ({
+      name: step.name.trim() || `Parallel ${index + 1}`,
+      execute: step.execute,
+    }));
+  }
+
+  if (!value?.trim()) return fallback;
+
+  try {
+    const parsed = JSON.parse(value) as Array<{ name?: unknown; execute?: unknown }>;
+    if (!Array.isArray(parsed) || parsed.length === 0) return fallback;
+    return parsed.map((step, index) => ({
+      name: typeof step.name === "string" && step.name.trim() ? step.name : `Parallel ${index + 1}`,
+      execute: typeof step.execute === "string" ? step.execute : "",
+    }));
+  } catch {
+    return fallback;
+  }
+}
+
+function parseBranchConfig(
+  branches: BranchConfig[] | undefined,
+  value: string | undefined,
+  fallbackName: string,
+) {
+  if (Array.isArray(branches) && branches.length > 0) {
+    return branches.map((branch, index) => ({
+      name: branch.name.trim() || `Branch ${index + 1}`,
+      condition: branch.condition || "true",
+      step: branch.step || "return data",
+    }));
+  }
+
+  if (!value?.trim()) {
+    return [{ name: `${fallbackName} branch`, condition: "true", step: "return data" }];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Array<{ name?: unknown; condition?: unknown; step?: unknown }>;
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return [{ name: `${fallbackName} branch`, condition: "true", step: "return data" }];
+    }
+    return parsed.map((branch, index) => ({
+      name: typeof branch.name === "string" && branch.name.trim() ? branch.name : `Branch ${index + 1}`,
+      condition: typeof branch.condition === "string" ? branch.condition : "true",
+      step: typeof branch.step === "string" ? branch.step : "",
+    }));
+  } catch {
+    return [{ name: `${fallbackName} branch`, condition: "true", step: "return data" }];
+  }
+}
+
+function clampIterations(value: number | undefined) {
+  if (!Number.isFinite(value)) return 3;
+  return Math.min(Math.max(Math.floor(value as number), 1), 20);
 }

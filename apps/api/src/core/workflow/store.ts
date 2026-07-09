@@ -25,6 +25,37 @@ export type WorkflowNodeRecord = {
     kind: string;
     description: string;
     accent?: string;
+    config?: {
+      executeLogic?: string;
+      condition?: string;
+      task?: string;
+      outputSchema?: string;
+      mapEntries?: Array<{
+        id: string;
+        key: string;
+        source: "data" | "input" | "step" | "value";
+        path: string;
+        value: string;
+        stepId: string;
+      }>;
+      mapJson?: string;
+      sideEffect?: string;
+      branches?: Array<{
+        id: string;
+        name: string;
+        condition: string;
+        step: string;
+      }>;
+      branchesJson?: string;
+      parallelSteps?: Array<{
+        id: string;
+        name: string;
+        execute: string;
+      }>;
+      parallelStepsJson?: string;
+      maxIterations?: number;
+      loopBody?: string;
+    };
   };
 };
 

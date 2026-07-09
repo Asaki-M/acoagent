@@ -39,6 +39,7 @@ export function createOpenAIProvider(): ModelProvider {
       const stream = await client.chat.completions.create({
         model: request.model,
         stream: true,
+        stream_options: { include_usage: true },
         temperature: request.temperature,
         max_tokens: request.maxOutputTokens,
         messages: request.messages.map((message) => ({
@@ -48,6 +49,14 @@ export function createOpenAIProvider(): ModelProvider {
       });
 
       for await (const part of stream) {
+        if (part.usage) {
+          yield {
+            type: "usage",
+            inputTokens: part.usage.prompt_tokens,
+            outputTokens: part.usage.completion_tokens,
+          };
+        }
+
         const content = part.choices[0]?.delta?.content;
         if (content) {
           yield { type: "delta", content };
