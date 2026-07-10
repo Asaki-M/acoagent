@@ -1,0 +1,14 @@
+README.md
+  h_8d050896203f0f 3-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8668090ed441e5bc25d530f96e05d1317866f180",
+  "prompts": {},
+  "humans": {
+    "h_8d050896203f0f": {
+      "author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
