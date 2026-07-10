@@ -1,5 +1,7 @@
 # AI Code Platform MVP
 
+## 暂停更新 - 越写越没感觉，好像在做之前重复做过的事，先不写了，我有个别的想法，感觉那个更有趣🤣
+
 Local code Q&A platform with a split frontend/backend architecture. The frontend imports a local project in the browser, ranks a compact code context, and streams model output plus trace events from the backend.
 
 ## Directory Structure
